@@ -32,6 +32,13 @@ public abstract class BaseLoadBalancer<T> {
         return maxProvidersCount;
     }
 
-    public abstract T get();
+    public T get() {
+        if (providers.isEmpty()) {
+            throw new NoProvidersRegisteredException();
+        }
+        return getNextProvider().get();
+    }
+
+    protected abstract Provider<T> getNextProvider();
     protected abstract void onProviderRegistered(Provider<T> provider);
 }
