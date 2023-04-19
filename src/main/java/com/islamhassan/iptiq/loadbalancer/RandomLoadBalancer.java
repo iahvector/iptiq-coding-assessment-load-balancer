@@ -6,8 +6,13 @@ public class RandomLoadBalancer<T> extends BaseLoadBalancer<T> {
     private final ArrayList<String> providerKeys = new ArrayList<>();
 
     @Override
-    protected void onProviderRegistered(Provider<T> provider) {
+    protected void onProviderEnabled(Provider<T> provider) {
         providerKeys.add(provider.getId());
+    }
+
+    @Override
+    protected void onProviderDisabled(Provider<T> provider) {
+        providerKeys.remove(provider.getId());
     }
 
     private int randomInt() {
@@ -16,6 +21,6 @@ public class RandomLoadBalancer<T> extends BaseLoadBalancer<T> {
 
     @Override
     protected Provider<T> getNextProvider() {
-        return providers.get(providerKeys.get(randomInt()));
+        return enabledProviders.get(providerKeys.get(randomInt()));
     }
 }

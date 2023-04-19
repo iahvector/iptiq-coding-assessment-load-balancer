@@ -16,11 +16,16 @@ public class RoundRobinLoadBalancer<T> extends BaseLoadBalancer<T> {
         String key = providerKeys.get(pointer);
         pointer++;
 
-        return providers.get(key);
+        return enabledProviders.get(key);
     }
 
     @Override
-    protected void onProviderRegistered(Provider<T> provider) {
+    protected void onProviderEnabled(Provider<T> provider) {
         providerKeys.add(provider.getId());
+    }
+
+    @Override
+    protected void onProviderDisabled(Provider<T> provider) {
+        providerKeys.remove(provider.getId());
     }
 }

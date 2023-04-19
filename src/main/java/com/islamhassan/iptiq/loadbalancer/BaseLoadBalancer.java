@@ -4,11 +4,11 @@ import java.util.HashMap;
 
 public abstract class BaseLoadBalancer<T> {
     protected int maxProvidersCount;
-    protected HashMap<String, Provider<T>> providers;
+    protected HashMap<String, Provider<T>> enabledProviders = new HashMap<>();
+    protected HashMap<String, Provider<T>> disabledProviders = new HashMap<>();
 
     public BaseLoadBalancer(int maxProvidersCount) {
         this.maxProvidersCount = maxProvidersCount;
-        this.providers = new HashMap<>();
     }
 
     public BaseLoadBalancer() {
@@ -16,16 +16,40 @@ public abstract class BaseLoadBalancer<T> {
     }
 
     public void registerProvider(Provider<T> provider) {
-        if (providers.size() >= maxProvidersCount) {
+        if (enabledProviders.size() + disabledProviders.size() >= maxProvidersCount) {
             throw new MaxProvidersCountReachedException("Max providers count: " + maxProvidersCount);
         }
 
-        providers.put(provider.getId(), provider);
-        onProviderRegistered(provider);
+        enabledProviders.put(provider.getId(), provider);
+        onProviderEnabled(provider);
+    }
+
+    public void enableProvider(String id) {
+        if (disabledProviders.containsKey(id)) {
+            Provider<T> p = disabledProviders.remove(id);
+            enabledProviders.put(id, p);
+            onProviderEnabled(p);
+        }
+    }
+
+    public void disableProvider(String id) {
+        if (enabledProviders.containsKey(id)) {
+            Provider<T> p = enabledProviders.remove(id);
+            disabledProviders.put(id, p);
+            onProviderDisabled(p);
+        }
+    }
+
+    public boolean isProviderEnabled(String id) {
+        return enabledProviders.containsKey(id);
     }
 
     public int getProvidersCount() {
-        return providers.size();
+        return enabledProviders.size() + disabledProviders.size();
+    }
+
+    public int getEnabledProvidersCount() {
+        return enabledProviders.size();
     }
 
     public int getMaxProvidersCount() {
@@ -33,12 +57,15 @@ public abstract class BaseLoadBalancer<T> {
     }
 
     public T get() {
-        if (providers.isEmpty()) {
-            throw new NoProvidersRegisteredException();
+        if (enabledProviders.isEmpty()) {
+            throw new NoProvidersAvailableException(
+                    "Total providers: " + getProvidersCount() + ", Enabled providers: " + getEnabledProvidersCount()
+            );
         }
         return getNextProvider().get();
     }
 
     protected abstract Provider<T> getNextProvider();
-    protected abstract void onProviderRegistered(Provider<T> provider);
+    protected abstract void onProviderEnabled(Provider<T> provider);
+    protected abstract void onProviderDisabled(Provider<T> provider);
 }

@@ -13,7 +13,12 @@ class BaseLoadBalancerTest {
         }
 
         @Override
-        protected void onProviderRegistered(Provider<T> provider) {
+        protected void onProviderEnabled(Provider<T> provider) {
+            // Do Nothing
+        }
+
+        @Override
+        protected void onProviderDisabled(Provider<T> provider) {
             // Do Nothing
         }
     }
@@ -22,7 +27,39 @@ class BaseLoadBalancerTest {
     public void whenNoProviders_throwException() {
         var lb = new BaseLoadBalancerConcrete<String>();
 
-        assertThrows(NoProvidersRegisteredException.class, lb::get);
+        assertThrows(NoProvidersAvailableException.class, lb::get);
+    }
+
+    @Test
+    public void whenProviderRegistered_providerIsEnabled() {
+        var id = "1";
+        var lb = new BaseLoadBalancerConcrete<String>();
+        lb.registerProvider(new ProviderExample(id));
+        assertTrue(lb.isProviderEnabled(id));
+        assertEquals(1, lb.getEnabledProvidersCount());
+    }
+
+    @Test
+    public void whenNoEnabledProviders_throwException() {
+        var id = "1";
+        var lb = new BaseLoadBalancerConcrete<String>();
+        lb.registerProvider(new ProviderExample(id));
+        lb.disableProvider(id);
+        assertEquals(1, lb.getProvidersCount());
+        assertEquals(0, lb.getEnabledProvidersCount());
+        assertThrows(NoProvidersAvailableException.class, lb::get);
+    }
+
+    @Test
+    public void testProviderReenabled() {
+        var id = "1";
+        var lb = new BaseLoadBalancerConcrete<String>();
+        lb.registerProvider(new ProviderExample(id));
+        lb.disableProvider(id);
+
+        assertThrows(NoProvidersAvailableException.class, lb::get);
+        lb.enableProvider(id);
+        assertTrue(lb.isProviderEnabled(id));
     }
 
     @Test

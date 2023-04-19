@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 
 class RoundRobinLoadBalancerTest {
@@ -31,5 +32,25 @@ class RoundRobinLoadBalancerTest {
         }
 
         assertEquals(expected, actual);
+    }
+
+    @Test
+    public void whenGetIsCalled_useEnabledProvidersOnly() {
+        var enabledId = "1";
+        var disabledId = "2";
+        var enabled = new ProviderExample(enabledId);
+        var disabled = new ProviderExample(disabledId);
+        var lb = new RoundRobinLoadBalancer<String>();
+        lb.registerProvider(enabled);
+        lb.registerProvider(disabled);
+        lb.disableProvider(disabledId);
+
+        assertFalse(lb.isProviderEnabled(disabledId));
+        assertEquals(1, lb.getEnabledProvidersCount());
+
+        for (int i = 0; i < 10; i++) {
+            var res = lb.get();
+            assertEquals(enabledId, res);
+        }
     }
 }
