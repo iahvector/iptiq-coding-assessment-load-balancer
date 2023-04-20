@@ -9,4 +9,8 @@ public interface ProviderMetaDataRepository {
     void disableProvider(String providerId);
     boolean isProviderEnabled(String providerId);
     long getEnabledProvidersCount();
+
+    int getProviderConsecutiveChecksCount(String providerId);
+    int incrementProviderConsecutiveChecksCount(String providerId);
+    void resetProviderConsecutiveChecksCount(String providerId);
 }

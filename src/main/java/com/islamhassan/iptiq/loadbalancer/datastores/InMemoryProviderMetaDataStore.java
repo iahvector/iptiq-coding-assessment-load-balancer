@@ -56,6 +56,31 @@ public class InMemoryProviderMetaDataStore implements ProviderMetaDataRepository
         return store.values().stream().filter(ProviderMetaData::isEnabled).count();
     }
 
+    @Override
+    public int getProviderConsecutiveChecksCount(String providerId) {
+        checkProviderExists(providerId);
+        return store.get(providerId).getConsecutiveChecksCount();
+    }
+
+    @Override
+    public int incrementProviderConsecutiveChecksCount(String providerId) {
+        checkProviderExists(providerId);
+        ProviderMetaData updated = store.computeIfPresent(providerId, (String id, ProviderMetaData data) -> {
+            data.setConsecutiveChecksCount(data.getConsecutiveChecksCount() + 1);
+            return data;
+        });
+        return updated.getConsecutiveChecksCount();
+    }
+
+    @Override
+    public void resetProviderConsecutiveChecksCount(String providerId) {
+        checkProviderExists(providerId);
+        store.computeIfPresent(providerId, (String id, ProviderMetaData data) -> {
+            data.setConsecutiveChecksCount(0);
+            return data;
+        });
+    }
+
     void checkProviderExists(String providerId) {
         if (!store.containsKey(providerId)) {
             throw new ProviderNotFoundException("Provider id: " + providerId);

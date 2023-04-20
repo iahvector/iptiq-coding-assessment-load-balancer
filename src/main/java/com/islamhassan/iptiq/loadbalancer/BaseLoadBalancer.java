@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 public abstract class BaseLoadBalancer<T> {
     public static final int DEFAULT_MAX_PROVIDERS_COUNT = 10;
     public static final int DEFAULT_HEART_BEAT_PERIOD_SECONDS = 60;
+    public static final int PROVIDER_MINIMUM_CHECK_SUCCESS_COUNT = 2;
 
     protected int maxProvidersCount;
     private final long heartBeatPeriodSeconds;
@@ -37,8 +38,14 @@ public abstract class BaseLoadBalancer<T> {
     public void startHearBeatChecker() {
         heartBeatExecutor.scheduleAtFixedRate(() -> {
             providers.values().parallelStream().forEach((Provider<T> p)->{
-                if (!p.check()) {
+                if (p.check()) {
+                    int checksCount = metaDataRepository.incrementProviderConsecutiveChecksCount(p.getId());
+                    if (checksCount == PROVIDER_MINIMUM_CHECK_SUCCESS_COUNT) {
+                        metaDataRepository.enableProvider(p.getId());
+                    }
+                } else {
                     disableProvider(p.getId());
+                    metaDataRepository.resetProviderConsecutiveChecksCount(p.getId());
                 }
             });
         }, 0, heartBeatPeriodSeconds, TimeUnit.SECONDS);
@@ -54,7 +61,7 @@ public abstract class BaseLoadBalancer<T> {
         }
 
         providers.put(provider.getId(), provider);
-        metaDataRepository.addProvider(provider.getId(), new ProviderMetaData(true));
+        metaDataRepository.addProvider(provider.getId(), new ProviderMetaData(true, 0));
         onProviderEnabled(provider);
     }
 

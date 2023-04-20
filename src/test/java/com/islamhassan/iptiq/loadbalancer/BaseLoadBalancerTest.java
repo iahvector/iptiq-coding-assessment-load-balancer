@@ -124,4 +124,56 @@ class BaseLoadBalancerTest {
 
         lb.stopHeartBeatChecker();
     }
+
+    @Test
+    public void whenProviderDisabledForCheckFailThenSucceeds_providerIsEnabled() {
+        var failingProviderId = "1";
+        var workingProviderId = "2";
+        var failingProvider = new ProviderExample(failingProviderId);
+        var workingProvider = new ProviderExample(workingProviderId);
+        var heartBeatPeriodSeconds = 1;
+        var lb = new BaseLoadBalancerConcrete<String>(new InMemoryProviderMetaDataStore(), 10, heartBeatPeriodSeconds);
+        lb.registerProvider(failingProvider);
+        lb.registerProvider(workingProvider);
+        lb.startHearBeatChecker();
+        var waitTimeToFail = (heartBeatPeriodSeconds * 1000) + 100;
+
+        try {
+            Thread.sleep(waitTimeToFail);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        assertTrue(lb.isProviderEnabled(failingProviderId));
+        assertTrue(lb.isProviderEnabled(workingProviderId));
+
+        failingProvider.setReady(false);
+
+        try {
+            Thread.sleep(waitTimeToFail);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        assertFalse(lb.isProviderEnabled(failingProviderId));
+        assertTrue(lb.isProviderEnabled(workingProviderId));
+        assertEquals(1, lb.getEnabledProvidersCount());
+
+        failingProvider.setReady(true);
+
+        var waitTimeToSucceed = (2 * heartBeatPeriodSeconds * 1000) + 100;
+
+        try {
+            Thread.sleep(waitTimeToSucceed);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        assertTrue(lb.isProviderEnabled(failingProviderId));
+        assertTrue(lb.isProviderEnabled(workingProviderId));
+        assertEquals(2, lb.getEnabledProvidersCount());
+
+        lb.stopHeartBeatChecker();
+
+    }
 }
