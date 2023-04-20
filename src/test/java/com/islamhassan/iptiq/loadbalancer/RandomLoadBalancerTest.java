@@ -1,5 +1,7 @@
 package com.islamhassan.iptiq.loadbalancer;
 
+import com.islamhassan.iptiq.loadbalancer.datastores.InMemoryProviderMetaDataStore;
+import com.islamhassan.iptiq.loadbalancer.providers.ProviderExample;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
@@ -10,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class RandomLoadBalancerTest {
     @Test
     public void whenGetIsCalled_returnResultFromARandomProvider() {
-        var lb = new RandomLoadBalancer<String>();
+        var lb = new RandomLoadBalancer<String>(new InMemoryProviderMetaDataStore());
         for (int i = 0; i < 10; i++) {
             lb.registerProvider(new ProviderExample(Integer.toString(i)));
         }
@@ -28,7 +30,7 @@ class RandomLoadBalancerTest {
         var disabledId = "2";
         var enabled = new ProviderExample(enabledId);
         var disabled = new ProviderExample(disabledId);
-        var lb = new RandomLoadBalancer<String>();
+        var lb = new RandomLoadBalancer<String>(new InMemoryProviderMetaDataStore());
         lb.registerProvider(enabled);
         lb.registerProvider(disabled);
         lb.disableProvider(disabledId);

@@ -1,55 +1,83 @@
 package com.islamhassan.iptiq.loadbalancer;
 
-import java.util.HashMap;
+import com.islamhassan.iptiq.loadbalancer.datastores.ProviderMetaData;
+import com.islamhassan.iptiq.loadbalancer.datastores.ProviderMetaDataRepository;
+import com.islamhassan.iptiq.loadbalancer.exceptions.MaxProvidersCountReachedException;
+import com.islamhassan.iptiq.loadbalancer.exceptions.NoProvidersAvailableException;
+import com.islamhassan.iptiq.loadbalancer.providers.Provider;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public abstract class BaseLoadBalancer<T> {
-    protected int maxProvidersCount;
-    protected HashMap<String, Provider<T>> enabledProviders = new HashMap<>();
-    protected HashMap<String, Provider<T>> disabledProviders = new HashMap<>();
+    public static final int DEFAULT_MAX_PROVIDERS_COUNT = 10;
+    public static final int DEFAULT_HEART_BEAT_PERIOD_SECONDS = 60;
 
-    public BaseLoadBalancer(int maxProvidersCount) {
+    protected int maxProvidersCount;
+    private final long heartBeatPeriodSeconds;
+
+    protected ConcurrentHashMap<String, Provider<T>> providers = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService heartBeatExecutor;
+    private final ProviderMetaDataRepository metaDataRepository;
+
+    public BaseLoadBalancer(ProviderMetaDataRepository repo, int maxProvidersCount, long heartBeatPeriodSeconds) {
         this.maxProvidersCount = maxProvidersCount;
+        this.heartBeatPeriodSeconds = heartBeatPeriodSeconds;
+
+        this.heartBeatExecutor = Executors.newSingleThreadScheduledExecutor();
+        this.metaDataRepository = repo;
     }
 
-    public BaseLoadBalancer() {
-        this(10);
+    public BaseLoadBalancer(ProviderMetaDataRepository repo) {
+        this(repo, DEFAULT_MAX_PROVIDERS_COUNT, DEFAULT_HEART_BEAT_PERIOD_SECONDS);
+    }
+
+    public void startHearBeatChecker() {
+        heartBeatExecutor.scheduleAtFixedRate(() -> {
+            providers.values().parallelStream().forEach((Provider<T> p)->{
+                if (!p.check()) {
+                    disableProvider(p.getId());
+                }
+            });
+        }, 0, heartBeatPeriodSeconds, TimeUnit.SECONDS);
+    }
+
+    public void stopHeartBeatChecker() {
+        heartBeatExecutor.shutdown();
     }
 
     public void registerProvider(Provider<T> provider) {
-        if (enabledProviders.size() + disabledProviders.size() >= maxProvidersCount) {
+        if (providers.size()  >= maxProvidersCount) {
             throw new MaxProvidersCountReachedException("Max providers count: " + maxProvidersCount);
         }
 
-        enabledProviders.put(provider.getId(), provider);
+        providers.put(provider.getId(), provider);
+        metaDataRepository.addProvider(provider.getId(), new ProviderMetaData(true));
         onProviderEnabled(provider);
     }
 
     public void enableProvider(String id) {
-        if (disabledProviders.containsKey(id)) {
-            Provider<T> p = disabledProviders.remove(id);
-            enabledProviders.put(id, p);
-            onProviderEnabled(p);
-        }
+        metaDataRepository.enableProvider(id);
+        onProviderEnabled(providers.get(id));
     }
 
     public void disableProvider(String id) {
-        if (enabledProviders.containsKey(id)) {
-            Provider<T> p = enabledProviders.remove(id);
-            disabledProviders.put(id, p);
-            onProviderDisabled(p);
-        }
+        metaDataRepository.disableProvider(id);
+        onProviderDisabled(providers.get(id));
     }
 
     public boolean isProviderEnabled(String id) {
-        return enabledProviders.containsKey(id);
+        return metaDataRepository.isProviderEnabled(id);
     }
 
     public int getProvidersCount() {
-        return enabledProviders.size() + disabledProviders.size();
+        return providers.size();
     }
 
-    public int getEnabledProvidersCount() {
-        return enabledProviders.size();
+    public long getEnabledProvidersCount() {
+        return metaDataRepository.getEnabledProvidersCount();
     }
 
     public int getMaxProvidersCount() {
@@ -57,7 +85,7 @@ public abstract class BaseLoadBalancer<T> {
     }
 
     public T get() {
-        if (enabledProviders.isEmpty()) {
+        if (getEnabledProvidersCount() == 0) {
             throw new NoProvidersAvailableException(
                     "Total providers: " + getProvidersCount() + ", Enabled providers: " + getEnabledProvidersCount()
             );

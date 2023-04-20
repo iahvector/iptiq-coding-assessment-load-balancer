@@ -1,5 +1,7 @@
 package com.islamhassan.iptiq.loadbalancer;
 
+import com.islamhassan.iptiq.loadbalancer.datastores.InMemoryProviderMetaDataStore;
+import com.islamhassan.iptiq.loadbalancer.providers.ProviderExample;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -22,7 +24,7 @@ class RoundRobinLoadBalancerTest {
             }
         }
 
-        var lb = new RoundRobinLoadBalancer<String>();
+        var lb = new RoundRobinLoadBalancer<String>(new InMemoryProviderMetaDataStore());
         for (int s = 0; s < size; s++) {
             lb.registerProvider(new ProviderExample(Integer.toString(s)));
         }
@@ -40,7 +42,7 @@ class RoundRobinLoadBalancerTest {
         var disabledId = "2";
         var enabled = new ProviderExample(enabledId);
         var disabled = new ProviderExample(disabledId);
-        var lb = new RoundRobinLoadBalancer<String>();
+        var lb = new RoundRobinLoadBalancer<String>(new InMemoryProviderMetaDataStore());
         lb.registerProvider(enabled);
         lb.registerProvider(disabled);
         lb.disableProvider(disabledId);

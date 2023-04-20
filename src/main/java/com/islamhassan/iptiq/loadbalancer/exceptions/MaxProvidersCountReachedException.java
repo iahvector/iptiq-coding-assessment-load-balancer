@@ -1,4 +1,4 @@
-package com.islamhassan.iptiq.loadbalancer;
+package com.islamhassan.iptiq.loadbalancer.exceptions;
 
 public class MaxProvidersCountReachedException extends RuntimeException {
     public MaxProvidersCountReachedException() {

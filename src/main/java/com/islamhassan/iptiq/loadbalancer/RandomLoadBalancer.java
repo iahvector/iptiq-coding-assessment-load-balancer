@@ -1,9 +1,20 @@
 package com.islamhassan.iptiq.loadbalancer;
 
+import com.islamhassan.iptiq.loadbalancer.datastores.ProviderMetaDataRepository;
+import com.islamhassan.iptiq.loadbalancer.providers.Provider;
+
 import java.util.ArrayList;
 
 public class RandomLoadBalancer<T> extends BaseLoadBalancer<T> {
     private final ArrayList<String> providerKeys = new ArrayList<>();
+
+    public RandomLoadBalancer(ProviderMetaDataRepository repo, int maxProvidersCount, long heartBeatPeriodSeconds) {
+        super(repo, maxProvidersCount, heartBeatPeriodSeconds);
+    }
+
+    public RandomLoadBalancer(ProviderMetaDataRepository repo) {
+        super(repo);
+    }
 
     @Override
     protected void onProviderEnabled(Provider<T> provider) {
@@ -21,6 +32,6 @@ public class RandomLoadBalancer<T> extends BaseLoadBalancer<T> {
 
     @Override
     protected Provider<T> getNextProvider() {
-        return enabledProviders.get(providerKeys.get(randomInt()));
+        return providers.get(providerKeys.get(randomInt()));
     }
 }
